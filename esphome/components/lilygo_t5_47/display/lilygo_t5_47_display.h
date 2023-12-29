@@ -6,11 +6,12 @@
 #include "esphome/components/display/display_color_utils.h"
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
+#include "esphome/core/version.h"
 
 namespace esphome {
 namespace lilygo_t5_47 {
 
-class LilygoT547Display : public PollingComponent, public display::DisplayBuffer {
+class LilygoT547Display : public display::Display {
  public:
   float get_setup_priority() const override;
 
@@ -43,6 +44,9 @@ class LilygoT547Display : public PollingComponent, public display::DisplayBuffer
   void flush_screen_changes();
   void power_on();
   void power_off();
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2022,6,0)
+  display::DisplayType get_display_type() override { return display::DisplayType::DISPLAY_TYPE_BINARY; }
+#endif
 
  protected:
   void HOT draw_absolute_pixel_internal(int x, int y, Color color) override;
