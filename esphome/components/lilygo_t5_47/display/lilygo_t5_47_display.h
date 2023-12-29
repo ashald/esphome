@@ -11,7 +11,7 @@
 namespace esphome {
 namespace lilygo_t5_47 {
 
-class LilygoT547Display : public PollingComponent, public display::DisplayBuffer {
+class LilygoT547Display : public PollingComponent, public display::Display {
  public:
   float get_setup_priority() const override;
 
