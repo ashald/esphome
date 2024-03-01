@@ -11,7 +11,11 @@
 namespace esphome {
 namespace lilygo_t5_47 {
 
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2023, 12, 0)
+class LilygoT547Display : public display::DisplayBuffer {
+#else 
 class LilygoT547Display : public PollingComponent, public display::DisplayBuffer {
+#endif
  public:
   float get_setup_priority() const override;
 
