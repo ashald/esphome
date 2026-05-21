@@ -10,19 +10,24 @@ namespace lilygo_t5_47 {
 
 static const char *const TAG = "lilygo_t5_47.sensor";
 
-static int correct_adc_reference() {
-  esp_adc_cal_characteristics_t adc_chars;
-  esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
-  if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
-    return adc_chars.vref;
-  }
-  return 1100;
-}
-
 float LilygoT547Sensor::get_battery_voltage() {
-  int vref = correct_adc_reference();
-  int v = analogRead(36);
-  return ((float) v / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
+  int raw = analogRead(36);
+
+  adc_cali_handle_t cali_handle = NULL;
+  adc_cali_line_fitting_config_t cali_config = {
+      .unit_id = ADC_UNIT_1,
+      .atten = ADC_ATTEN_DB_12,
+      .bitwidth = ADC_BITWIDTH_12,
+      .default_vref = 1100,
+  };
+
+  int voltage_mv = 0;
+  if (adc_cali_create_scheme_line_fitting(&cali_config, &cali_handle) == ESP_OK) {
+    adc_cali_raw_to_voltage(cali_handle, raw, &voltage_mv);
+    adc_cali_delete_scheme_line_fitting(cali_handle);
+    return voltage_mv / 1000.0f * 2.0f;
+  }
+  return ((float) raw / 4095.0f) * 2.0f * 3.3f;
 }
 
 void LilygoT547Sensor::update() {

@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 
-#include <driver/adc.h>
-#include "esp_adc_cal.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
 
 #include "esphome/core/component.h"
 #include "esphome/components/sensor/sensor.h"

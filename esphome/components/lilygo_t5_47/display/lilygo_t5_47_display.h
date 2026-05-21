@@ -1,7 +1,6 @@
 #pragma once
 #include <Arduino.h>
 
-#include "esp_adc_cal.h"
 #include "esphome/components/display/display_buffer.h"
 #include "esphome/components/display/display_color_utils.h"
 #include "esphome/core/component.h"
@@ -11,7 +10,11 @@
 namespace esphome {
 namespace lilygo_t5_47 {
 
+#if ESPHOME_VERSION_CODE >= VERSION_CODE(2023, 12, 0)
+class LilygoT547Display : public display::DisplayBuffer {
+#else 
 class LilygoT547Display : public PollingComponent, public display::DisplayBuffer {
+#endif
  public:
   float get_setup_priority() const override;
 
