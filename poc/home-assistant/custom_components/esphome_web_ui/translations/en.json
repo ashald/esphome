@@ -1,0 +1,12 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "description": "Show the web UIs of ESPHome devices that run the tcp_proxy component inside Home Assistant, relayed over the encrypted native API connection."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Already configured."
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "domain": "esphome_web_ui",
+  "name": "ESPHome device web UIs",
+  "after_dependencies": ["esphome"],
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["esphome", "frontend", "http", "panel_custom", "websocket_api"],
+  "documentation": "https://github.com/ashald/esphome/tree/claude/practical-fermat-sbmyi3/poc",
+  "iot_class": "local_push",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

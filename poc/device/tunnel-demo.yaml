@@ -1,0 +1,27 @@
+# Host-platform (Linux) device used for the end-to-end demo. The "web UI" is a
+# stand-in HTTP server on 127.0.0.1:8080 (poc/device/fake_device_ui.py), because
+# ESPHome's web_server does not run on the host platform.
+esphome:
+  name: tunnel-demo
+  friendly_name: Tunnel Demo
+
+host:
+  mac_address: "06:35:69:ab:f6:79"
+
+logger:
+  level: DEBUG
+
+# Plaintext only because this sandbox cannot download the noise-c library from the
+# PlatformIO registry. Real devices should keep `encryption:`; the tunnel behaves the same.
+api:
+  port: 6053
+
+tcp_proxy:
+  targets:
+    - name: Device UI
+      port: 8080
+      path: /
+    # Exercises the CONNECT_FAILED path in tests; raw targets are not shown as UIs
+    - name: Closed port (test)
+      port: 9
+      type: raw
