@@ -1,0 +1,14 @@
+api:
+
+tcp_proxy:
+  max_connections: 3
+  buffer_size: 1024
+  timeout: 3s
+  targets:
+    - name: Web UI
+      port: 80
+      path: /
+    - name: Telnet console
+      address: 192.168.1.10
+      port: 23
+      type: raw

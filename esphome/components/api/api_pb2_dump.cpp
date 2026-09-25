@@ -147,6 +147,16 @@ template<> const char *proto_enum_to_string<enums::SerialProxyPortType>(enums::S
       return ESPHOME_PSTR("UNKNOWN");
   }
 }
+template<> const char *proto_enum_to_string<enums::TcpProxyTargetType>(enums::TcpProxyTargetType value) {
+  switch (value) {
+    case enums::TCP_PROXY_TARGET_TYPE_RAW:
+      return ESPHOME_PSTR("TCP_PROXY_TARGET_TYPE_RAW");
+    case enums::TCP_PROXY_TARGET_TYPE_HTTP:
+      return ESPHOME_PSTR("TCP_PROXY_TARGET_TYPE_HTTP");
+    default:
+      return ESPHOME_PSTR("UNKNOWN");
+  }
+}
 template<> const char *proto_enum_to_string<enums::EntityCategory>(enums::EntityCategory value) {
   switch (value) {
     case enums::ENTITY_CATEGORY_NONE:
@@ -891,6 +901,26 @@ template<> const char *proto_enum_to_string<enums::SerialProxyMode>(enums::Seria
   }
 }
 #endif
+#ifdef USE_TCP_PROXY
+template<> const char *proto_enum_to_string<enums::TcpProxyStatus>(enums::TcpProxyStatus value) {
+  switch (value) {
+    case enums::TCP_PROXY_STATUS_OK:
+      return ESPHOME_PSTR("TCP_PROXY_STATUS_OK");
+    case enums::TCP_PROXY_STATUS_INVALID_ARGUMENT:
+      return ESPHOME_PSTR("TCP_PROXY_STATUS_INVALID_ARGUMENT");
+    case enums::TCP_PROXY_STATUS_NO_RESOURCES:
+      return ESPHOME_PSTR("TCP_PROXY_STATUS_NO_RESOURCES");
+    case enums::TCP_PROXY_STATUS_CONNECT_FAILED:
+      return ESPHOME_PSTR("TCP_PROXY_STATUS_CONNECT_FAILED");
+    case enums::TCP_PROXY_STATUS_ERROR:
+      return ESPHOME_PSTR("TCP_PROXY_STATUS_ERROR");
+    case enums::TCP_PROXY_STATUS_FLOW_CONTROL:
+      return ESPHOME_PSTR("TCP_PROXY_STATUS_FLOW_CONTROL");
+    default:
+      return ESPHOME_PSTR("UNKNOWN");
+  }
+}
+#endif
 
 const char *HelloRequest::dump_to(DumpBuffer &out) const {
   MessageDumpHelper helper(out, ESPHOME_PSTR("HelloRequest"));
@@ -947,6 +977,15 @@ const char *SerialProxyInfo::dump_to(DumpBuffer &out) const {
   dump_field(out, ESPHOME_PSTR("name"), this->name);
   dump_field(out, ESPHOME_PSTR("port_type"), static_cast<enums::SerialProxyPortType>(this->port_type));
   dump_field(out, ESPHOME_PSTR("configured_line_states"), this->configured_line_states);
+  return out.c_str();
+}
+#endif
+#ifdef USE_TCP_PROXY
+const char *TcpProxyTargetInfo::dump_to(DumpBuffer &out) const {
+  MessageDumpHelper helper(out, ESPHOME_PSTR("TcpProxyTargetInfo"));
+  dump_field(out, ESPHOME_PSTR("name"), this->name);
+  dump_field(out, ESPHOME_PSTR("type"), static_cast<enums::TcpProxyTargetType>(this->type));
+  dump_field(out, ESPHOME_PSTR("path"), this->path);
   return out.c_str();
 }
 #endif
@@ -1066,6 +1105,13 @@ const char *DeviceCapabilitiesResponse::dump_to(DumpBuffer &out) const {
 #ifdef USE_SERIAL_PROXY
   for (const auto &it : this->serial_proxies) {
     out.append(4, ' ').append_p(ESPHOME_PSTR("serial_proxies")).append(": ");
+    it.dump_to(out);
+    out.append("\n");
+  }
+#endif
+#ifdef USE_TCP_PROXY
+  for (const auto &it : this->tcp_proxy_targets) {
+    out.append(4, ' ').append_p(ESPHOME_PSTR("tcp_proxy_targets")).append(": ");
     it.dump_to(out);
     out.append("\n");
   }
@@ -2821,6 +2867,41 @@ const char *SerialProxySetModeRequest::dump_to(DumpBuffer &out) const {
   MessageDumpHelper helper(out, ESPHOME_PSTR("SerialProxySetModeRequest"));
   dump_field(out, ESPHOME_PSTR("instance"), this->instance);
   dump_field(out, ESPHOME_PSTR("mode"), static_cast<enums::SerialProxyMode>(this->mode));
+  return out.c_str();
+}
+#endif
+#ifdef USE_TCP_PROXY
+const char *TcpProxyOpenRequest::dump_to(DumpBuffer &out) const {
+  MessageDumpHelper helper(out, ESPHOME_PSTR("TcpProxyOpenRequest"));
+  dump_field(out, ESPHOME_PSTR("target"), this->target);
+  dump_field(out, ESPHOME_PSTR("stream_id"), this->stream_id);
+  dump_field(out, ESPHOME_PSTR("window"), this->window);
+  return out.c_str();
+}
+const char *TcpProxyOpenResponse::dump_to(DumpBuffer &out) const {
+  MessageDumpHelper helper(out, ESPHOME_PSTR("TcpProxyOpenResponse"));
+  dump_field(out, ESPHOME_PSTR("stream_id"), this->stream_id);
+  dump_field(out, ESPHOME_PSTR("status"), static_cast<enums::TcpProxyStatus>(this->status));
+  dump_field(out, ESPHOME_PSTR("window"), this->window);
+  dump_field(out, ESPHOME_PSTR("max_data_size"), this->max_data_size);
+  return out.c_str();
+}
+const char *TcpProxyData::dump_to(DumpBuffer &out) const {
+  MessageDumpHelper helper(out, ESPHOME_PSTR("TcpProxyData"));
+  dump_field(out, ESPHOME_PSTR("stream_id"), this->stream_id);
+  dump_bytes_field(out, ESPHOME_PSTR("data"), this->data, this->data_len);
+  return out.c_str();
+}
+const char *TcpProxyWindowUpdate::dump_to(DumpBuffer &out) const {
+  MessageDumpHelper helper(out, ESPHOME_PSTR("TcpProxyWindowUpdate"));
+  dump_field(out, ESPHOME_PSTR("stream_id"), this->stream_id);
+  dump_field(out, ESPHOME_PSTR("increment"), this->increment);
+  return out.c_str();
+}
+const char *TcpProxyClose::dump_to(DumpBuffer &out) const {
+  MessageDumpHelper helper(out, ESPHOME_PSTR("TcpProxyClose"));
+  dump_field(out, ESPHOME_PSTR("stream_id"), this->stream_id);
+  dump_field(out, ESPHOME_PSTR("status"), static_cast<enums::TcpProxyStatus>(this->status));
   return out.c_str();
 }
 #endif

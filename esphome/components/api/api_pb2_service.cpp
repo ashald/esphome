@@ -723,6 +723,50 @@ void APIConnection::read_message_(uint32_t msg_size, uint32_t msg_type, const ui
       break;
     }
 #endif
+#ifdef USE_TCP_PROXY
+    case TcpProxyOpenRequest::MESSAGE_TYPE: {
+      TcpProxyOpenRequest msg;
+      msg.decode(msg_data, msg_size);
+#ifdef HAS_PROTO_MESSAGE_DUMP
+      this->log_receive_message_(LOG_STR("on_tcp_proxy_open_request"), msg);
+#endif
+      this->on_tcp_proxy_open_request(msg);
+      break;
+    }
+#endif
+#ifdef USE_TCP_PROXY
+    case TcpProxyData::MESSAGE_TYPE: {
+      TcpProxyData msg;
+      msg.decode(msg_data, msg_size);
+#ifdef HAS_PROTO_MESSAGE_DUMP
+      this->log_receive_message_(LOG_STR("on_tcp_proxy_data"), msg);
+#endif
+      this->on_tcp_proxy_data(msg);
+      break;
+    }
+#endif
+#ifdef USE_TCP_PROXY
+    case TcpProxyWindowUpdate::MESSAGE_TYPE: {
+      TcpProxyWindowUpdate msg;
+      msg.decode(msg_data, msg_size);
+#ifdef HAS_PROTO_MESSAGE_DUMP
+      this->log_receive_message_(LOG_STR("on_tcp_proxy_window_update"), msg);
+#endif
+      this->on_tcp_proxy_window_update(msg);
+      break;
+    }
+#endif
+#ifdef USE_TCP_PROXY
+    case TcpProxyClose::MESSAGE_TYPE: {
+      TcpProxyClose msg;
+      msg.decode(msg_data, msg_size);
+#ifdef HAS_PROTO_MESSAGE_DUMP
+      this->log_receive_message_(LOG_STR("on_tcp_proxy_close"), msg);
+#endif
+      this->on_tcp_proxy_close(msg);
+      break;
+    }
+#endif
     default:
       break;
   }

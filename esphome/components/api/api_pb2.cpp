@@ -113,6 +113,24 @@ uint32_t SerialProxyInfo::calc_size_msg(const void *self) {
   return size;
 }
 #endif
+#ifdef USE_TCP_PROXY
+uint8_t *TcpProxyTargetInfo::encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) {
+  const auto &msg = *static_cast<const TcpProxyTargetInfo *>(self);
+  uint8_t *__restrict__ pos = buffer.get_pos();
+  pos = ProtoEncode::encode_string(pos PROTO_ENCODE_DEBUG_ARG, 1, msg.name);
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 2, static_cast<uint32_t>(msg.type));
+  pos = ProtoEncode::encode_string(pos PROTO_ENCODE_DEBUG_ARG, 3, msg.path);
+  return pos;
+}
+uint32_t TcpProxyTargetInfo::calc_size_msg(const void *self) {
+  const auto &msg = *static_cast<const TcpProxyTargetInfo *>(self);
+  uint32_t size = 0;
+  size += !msg.name.empty() ? 2 + msg.name.size() : 0;
+  size += msg.type ? 2 : 0;
+  size += !msg.path.empty() ? 2 + msg.path.size() : 0;
+  return size;
+}
+#endif
 uint8_t *DeviceInfoResponse::encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) {
   const auto &msg = *static_cast<const DeviceInfoResponse *>(self);
   uint8_t *__restrict__ pos = buffer.get_pos();
@@ -308,6 +326,11 @@ uint8_t *DeviceCapabilitiesResponse::encode_msg(const void *self, ProtoWriteBuff
     pos = ProtoEncode::encode_sub_message(pos PROTO_ENCODE_DEBUG_ARG, buffer, 4, it);
   }
 #endif
+#ifdef USE_TCP_PROXY
+  for (const auto &it : msg.tcp_proxy_targets) {
+    pos = ProtoEncode::encode_sub_message(pos PROTO_ENCODE_DEBUG_ARG, buffer, 5, it);
+  }
+#endif
   return pos;
 }
 uint32_t DeviceCapabilitiesResponse::calc_size_msg(const void *self) {
@@ -324,6 +347,11 @@ uint32_t DeviceCapabilitiesResponse::calc_size_msg(const void *self) {
 #endif
 #ifdef USE_SERIAL_PROXY
   for (const auto &it : msg.serial_proxies) {
+    size += ProtoSize::calc_message_force(1, it.calculate_size());
+  }
+#endif
+#ifdef USE_TCP_PROXY
+  for (const auto &it : msg.tcp_proxy_targets) {
     size += ProtoSize::calc_message_force(1, it.calculate_size());
   }
 #endif
@@ -4162,6 +4190,124 @@ void SerialProxySetModeRequest::decode_field(void *self, uint32_t tag, const uin
   }
 }
 #endif
+#ifdef USE_TCP_PROXY
+void TcpProxyOpenRequest::decode_field(void *self, uint32_t tag, const uint8_t *data, proto_varint_value_t scalar) {
+  auto &msg = *static_cast<TcpProxyOpenRequest *>(self);
+  const ProtoFieldValue value(data, scalar);
+  switch (tag) {
+    case proto_tag(1, WIRE_TYPE_VARINT):
+      msg.target = value.as_varint();
+      break;
+    case proto_tag(2, WIRE_TYPE_VARINT):
+      msg.stream_id = value.as_varint();
+      break;
+    case proto_tag(3, WIRE_TYPE_VARINT):
+      msg.window = value.as_varint();
+      break;
+  }
+}
+uint8_t *TcpProxyOpenResponse::encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) {
+  const auto &msg = *static_cast<const TcpProxyOpenResponse *>(self);
+  uint8_t *__restrict__ pos = buffer.get_pos();
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 1, msg.stream_id);
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 2, static_cast<uint32_t>(msg.status));
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 3, msg.window);
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 4, msg.max_data_size);
+  return pos;
+}
+uint32_t TcpProxyOpenResponse::calc_size_msg(const void *self) {
+  const auto &msg = *static_cast<const TcpProxyOpenResponse *>(self);
+  uint32_t size = 0;
+  size += ProtoSize::calc_uint32(1, msg.stream_id);
+  size += msg.status ? 2 : 0;
+  size += ProtoSize::calc_uint32(1, msg.window);
+  size += ProtoSize::calc_uint32(1, msg.max_data_size);
+  return size;
+}
+void TcpProxyData::decode_field(void *self, uint32_t tag, const uint8_t *data, proto_varint_value_t scalar) {
+  auto &msg = *static_cast<TcpProxyData *>(self);
+  const ProtoFieldValue value(data, scalar);
+  switch (tag) {
+    case proto_tag(1, WIRE_TYPE_VARINT):
+      msg.stream_id = value.as_varint();
+      break;
+    case proto_tag(2, WIRE_TYPE_LENGTH_DELIMITED):
+      msg.data = value.data();
+      msg.data_len = value.size();
+      break;
+  }
+}
+__attribute__((optimize("O2")))  // NOLINT(clang-diagnostic-unknown-attributes)
+uint8_t *
+TcpProxyData::encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) {
+  const auto &msg = *static_cast<const TcpProxyData *>(self);
+  uint8_t *__restrict__ pos = buffer.get_pos();
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 1, msg.stream_id);
+  pos = ProtoEncode::encode_bytes(pos PROTO_ENCODE_DEBUG_ARG, 2, msg.data, msg.data_len);
+  return pos;
+}
+__attribute__((optimize("O2")))  // NOLINT(clang-diagnostic-unknown-attributes)
+uint32_t
+TcpProxyData::calc_size_msg(const void *self) {
+  const auto &msg = *static_cast<const TcpProxyData *>(self);
+  uint32_t size = 0;
+  size += ProtoSize::calc_uint32(1, msg.stream_id);
+  size += ProtoSize::calc_length(1, msg.data_len);
+  return size;
+}
+void TcpProxyWindowUpdate::decode_field(void *self, uint32_t tag, const uint8_t *data, proto_varint_value_t scalar) {
+  auto &msg = *static_cast<TcpProxyWindowUpdate *>(self);
+  const ProtoFieldValue value(data, scalar);
+  switch (tag) {
+    case proto_tag(1, WIRE_TYPE_VARINT):
+      msg.stream_id = value.as_varint();
+      break;
+    case proto_tag(2, WIRE_TYPE_VARINT):
+      msg.increment = value.as_varint();
+      break;
+  }
+}
+uint8_t *TcpProxyWindowUpdate::encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) {
+  const auto &msg = *static_cast<const TcpProxyWindowUpdate *>(self);
+  uint8_t *__restrict__ pos = buffer.get_pos();
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 1, msg.stream_id);
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 2, msg.increment);
+  return pos;
+}
+uint32_t TcpProxyWindowUpdate::calc_size_msg(const void *self) {
+  const auto &msg = *static_cast<const TcpProxyWindowUpdate *>(self);
+  uint32_t size = 0;
+  size += ProtoSize::calc_uint32(1, msg.stream_id);
+  size += ProtoSize::calc_uint32(1, msg.increment);
+  return size;
+}
+void TcpProxyClose::decode_field(void *self, uint32_t tag, const uint8_t *data, proto_varint_value_t scalar) {
+  auto &msg = *static_cast<TcpProxyClose *>(self);
+  const ProtoFieldValue value(data, scalar);
+  switch (tag) {
+    case proto_tag(1, WIRE_TYPE_VARINT):
+      msg.stream_id = value.as_varint();
+      break;
+    case proto_tag(2, WIRE_TYPE_VARINT):
+      msg.status = static_cast<enums::TcpProxyStatus>(value.as_varint());
+      break;
+  }
+}
+uint8_t *TcpProxyClose::encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) {
+  const auto &msg = *static_cast<const TcpProxyClose *>(self);
+  uint8_t *__restrict__ pos = buffer.get_pos();
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 1, msg.stream_id);
+  pos = ProtoEncode::encode_uint32(pos PROTO_ENCODE_DEBUG_ARG, 2, static_cast<uint32_t>(msg.status));
+  return pos;
+}
+uint32_t TcpProxyClose::calc_size_msg(const void *self) {
+  const auto &msg = *static_cast<const TcpProxyClose *>(self);
+  uint32_t size = 0;
+  size += ProtoSize::calc_uint32(1, msg.stream_id);
+  size += msg.status ? 2 : 0;
+  return size;
+}
+#endif
 #ifdef USE_BLUETOOTH_PROXY_CONNECTIONS
 void BluetoothSetConnectionParamsRequest::decode_field(void *self, uint32_t tag, const uint8_t *data,
                                                        proto_varint_value_t scalar) {
@@ -4322,6 +4468,12 @@ static_assert(!std::is_polymorphic_v<SerialProxySetModemPinsRequest>, "decodable
 static_assert(!std::is_polymorphic_v<SerialProxyGetModemPinsRequest>, "decodable messages carry no vtable");
 static_assert(!std::is_polymorphic_v<SerialProxyRequest>, "decodable messages carry no vtable");
 static_assert(!std::is_polymorphic_v<SerialProxySetModeRequest>, "decodable messages carry no vtable");
+#endif
+#ifdef USE_TCP_PROXY
+static_assert(!std::is_polymorphic_v<TcpProxyOpenRequest>, "decodable messages carry no vtable");
+static_assert(!std::is_polymorphic_v<TcpProxyData>, "decodable messages carry no vtable");
+static_assert(!std::is_polymorphic_v<TcpProxyWindowUpdate>, "decodable messages carry no vtable");
+static_assert(!std::is_polymorphic_v<TcpProxyClose>, "decodable messages carry no vtable");
 #endif
 #ifdef USE_BLUETOOTH_PROXY_CONNECTIONS
 static_assert(!std::is_polymorphic_v<BluetoothSetConnectionParamsRequest>, "decodable messages carry no vtable");

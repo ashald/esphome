@@ -78,6 +78,11 @@ service APIConnection {
   rpc serial_proxy_get_modem_pins(SerialProxyGetModemPinsRequest) returns (void) {}
   rpc serial_proxy_request(SerialProxyRequest) returns (void) {}
   rpc serial_proxy_set_mode(SerialProxySetModeRequest) returns (void) {}
+
+  rpc tcp_proxy_open(TcpProxyOpenRequest) returns (void) {}
+  rpc tcp_proxy_data(TcpProxyData) returns (void) {}
+  rpc tcp_proxy_window_update(TcpProxyWindowUpdate) returns (void) {}
+  rpc tcp_proxy_close(TcpProxyClose) returns (void) {}
 }
 
 
@@ -236,6 +241,21 @@ message SerialProxyInfo {
   uint32 configured_line_states = 3;  // Bitmask of SerialProxyLineStateFlags this instance can drive
 }
 
+// What a TCP proxy target speaks, so a client knows how to present it.
+enum TcpProxyTargetType {
+  TCP_PROXY_TARGET_TYPE_RAW = 0;   // Opaque TCP service
+  TCP_PROXY_TARGET_TYPE_HTTP = 1;  // HTTP server with a web UI a client may embed
+}
+
+// A TCP endpoint the device can reach and will relay for an authenticated client.
+// The endpoint's address is deliberately not exposed: clients pick a target by
+// index and cannot make the device connect anywhere the firmware did not allow.
+message TcpProxyTargetInfo {
+  string name = 1 [(max_data_length) = 120];  // Human-readable name, e.g. "Web UI"
+  TcpProxyTargetType type = 2;
+  string path = 3 [(max_data_length) = 127];  // HTTP only: entry page of the UI, e.g. "/"
+}
+
 // DeviceInfoResponse max_data_length values:
 //   name = 31 (ESPHOME_DEVICE_NAME_MAX_LEN, validated by validate_hostname)
 //   friendly_name = 120 (core/config.FRIENDLY_NAME_MAX_LEN)
@@ -389,6 +409,8 @@ message DeviceCapabilitiesResponse {
   ZWaveProxyCapabilities zwave_proxy = 3 [(field_ifdef) = "USE_ZWAVE_PROXY"];
   repeated SerialProxyInfo serial_proxies = 4
       [(field_ifdef) = "USE_SERIAL_PROXY", (fixed_array_size_define) = "SERIAL_PROXY_COUNT"];
+  repeated TcpProxyTargetInfo tcp_proxy_targets = 5
+      [(field_ifdef) = "USE_TCP_PROXY", (fixed_array_size_define) = "TCP_PROXY_TARGET_COUNT"];
 }
 
 message ListEntitiesRequest {
@@ -2865,6 +2887,86 @@ message SerialProxySetModeRequest {
 
   uint32 instance = 1;
   SerialProxyMode mode = 2;
+}
+
+// ==================== TCP PROXY ====================
+// Relays TCP streams between an API client and endpoints the device can reach
+// (typically its own web server on 127.0.0.1). This lets a client such as Home
+// Assistant reach a device's web UI over the already authenticated, encrypted
+// API connection instead of a separate plain HTTP connection.
+//
+// Stream lifecycle:
+//  1. Client sends TcpProxyOpenRequest with a stream_id of its choosing.
+//  2. Device connects to the target and answers TcpProxyOpenResponse.
+//  3. Both sides exchange TcpProxyData, bounded by flow control windows.
+//  4. Either side sends TcpProxyClose; the stream_id may then be reused.
+// All streams of a connection are closed when the API connection drops.
+//
+// Flow control works like SSH channels: each side announces a receive window
+// and the peer never has more than that many unacknowledged bytes in flight.
+// The receiver returns credit with TcpProxyWindowUpdate as it consumes data.
+// This keeps device side buffering fixed no matter how fast the client sends.
+
+enum TcpProxyStatus {
+  TCP_PROXY_STATUS_OK = 0;                // Success / orderly close
+  TCP_PROXY_STATUS_INVALID_ARGUMENT = 1;  // Unknown target, or stream_id already open
+  TCP_PROXY_STATUS_NO_RESOURCES = 2;      // All stream slots are busy
+  TCP_PROXY_STATUS_CONNECT_FAILED = 3;    // Target refused or is unreachable
+  TCP_PROXY_STATUS_ERROR = 4;             // Socket error on an open stream
+  TCP_PROXY_STATUS_FLOW_CONTROL = 5;      // Peer sent more data than its window allowed
+}
+
+message TcpProxyOpenRequest {
+  option (id) = 156;
+  option (source) = SOURCE_CLIENT;
+  option (ifdef) = "USE_TCP_PROXY";
+
+  uint32 target = 1;     // Index into DeviceCapabilitiesResponse.tcp_proxy_targets
+  uint32 stream_id = 2;  // Chosen by the client, unique among its open streams
+  uint32 window = 3;     // Bytes the device may send before waiting for a window update
+}
+
+message TcpProxyOpenResponse {
+  option (id) = 157;
+  option (source) = SOURCE_SERVER;
+  option (ifdef) = "USE_TCP_PROXY";
+  option (no_delay) = true;
+
+  uint32 stream_id = 1;
+  TcpProxyStatus status = 2;
+  uint32 window = 3;     // Bytes the client may send before waiting for a window update
+  uint32 max_data_size = 4;  // Largest TcpProxyData payload the device accepts
+}
+
+message TcpProxyData {
+  option (id) = 158;
+  option (source) = SOURCE_BOTH;
+  option (ifdef) = "USE_TCP_PROXY";
+  option (no_delay) = true;
+  option (speed_optimized) = true;
+
+  uint32 stream_id = 1;
+  bytes data = 2;
+}
+
+message TcpProxyWindowUpdate {
+  option (id) = 159;
+  option (source) = SOURCE_BOTH;
+  option (ifdef) = "USE_TCP_PROXY";
+  option (no_delay) = true;
+
+  uint32 stream_id = 1;
+  uint32 increment = 2;  // Bytes consumed since the last update
+}
+
+message TcpProxyClose {
+  option (id) = 160;
+  option (source) = SOURCE_BOTH;
+  option (ifdef) = "USE_TCP_PROXY";
+  option (no_delay) = true;
+
+  uint32 stream_id = 1;
+  TcpProxyStatus status = 2;  // OK for an orderly close (EOF), otherwise the reason
 }
 
 // ==================== BLUETOOTH CONNECTION PARAMS ====================

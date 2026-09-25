@@ -48,6 +48,9 @@
 #ifdef USE_ZWAVE_PROXY
 #include "esphome/components/zwave_proxy/zwave_proxy.h"
 #endif
+#ifdef USE_TCP_PROXY
+#include "esphome/components/tcp_proxy/tcp_proxy.h"
+#endif
 #ifdef USE_WATER_HEATER
 #include "esphome/components/water_heater/water_heater.h"
 #endif
@@ -198,6 +201,9 @@ APIConnection::~APIConnection() {
       proxy->serial_proxy_request(this, enums::SERIAL_PROXY_REQUEST_TYPE_UNSUBSCRIBE);
     }
   }
+#endif
+#ifdef USE_TCP_PROXY
+  tcp_proxy::global_tcp_proxy->on_connection_closed(this);
 #endif
 }
 
@@ -1692,6 +1698,17 @@ void APIConnection::send_serial_proxy_data(const SerialProxyDataReceived &msg) {
 }
 #endif
 
+#ifdef USE_TCP_PROXY
+void APIConnection::on_tcp_proxy_open_request(const TcpProxyOpenRequest &msg) {
+  tcp_proxy::global_tcp_proxy->on_open_request(this, msg);
+}
+void APIConnection::on_tcp_proxy_data(const TcpProxyData &msg) { tcp_proxy::global_tcp_proxy->on_data(this, msg); }
+void APIConnection::on_tcp_proxy_window_update(const TcpProxyWindowUpdate &msg) {
+  tcp_proxy::global_tcp_proxy->on_window_update(this, msg);
+}
+void APIConnection::on_tcp_proxy_close(const TcpProxyClose &msg) { tcp_proxy::global_tcp_proxy->on_close(this, msg); }
+#endif
+
 #ifdef USE_INFRARED
 uint16_t APIConnection::try_send_infrared_info(EntityBase *entity, APIConnection *conn, uint32_t remaining_size) {
   auto *infrared = static_cast<infrared::Infrared *>(entity);
@@ -2007,6 +2024,15 @@ bool APIConnection::send_device_capabilities_response_() {
     info.name = StringRef(proxy->get_name());
     info.port_type = proxy->get_port_type();
     info.configured_line_states = proxy->get_configured_modem_pins();
+  }
+#endif
+#ifdef USE_TCP_PROXY
+  const auto &tcp_proxy_targets = tcp_proxy::global_tcp_proxy->get_targets();
+  for (size_t i = 0; i < TCP_PROXY_TARGET_COUNT; i++) {
+    auto &info = resp.tcp_proxy_targets[i];
+    info.name = StringRef(tcp_proxy_targets[i].name);
+    info.type = tcp_proxy_targets[i].type;
+    info.path = StringRef(tcp_proxy_targets[i].path);
   }
 #endif
   return this->send_message(resp);

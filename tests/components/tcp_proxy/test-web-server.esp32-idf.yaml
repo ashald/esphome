@@ -1,0 +1,12 @@
+# With no targets, the device's own web_server is exposed
+wifi:
+  ssid: MySSID
+  password: password1
+
+api:
+
+web_server:
+  port: 80
+  version: 3
+
+tcp_proxy:

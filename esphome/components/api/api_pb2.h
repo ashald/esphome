@@ -24,6 +24,10 @@ enum SerialProxyPortType : uint32_t {
   SERIAL_PROXY_PORT_TYPE_RS232 = 1,
   SERIAL_PROXY_PORT_TYPE_RS485 = 2,
 };
+enum TcpProxyTargetType : uint32_t {
+  TCP_PROXY_TARGET_TYPE_RAW = 0,
+  TCP_PROXY_TARGET_TYPE_HTTP = 1,
+};
 enum EntityCategory : uint32_t {
   ENTITY_CATEGORY_NONE = 0,
   ENTITY_CATEGORY_CONFIG = 1,
@@ -372,6 +376,16 @@ enum SerialProxyMode : uint32_t {
   SERIAL_PROXY_MODE_PROTOCOL = 1,
 };
 #endif
+#ifdef USE_TCP_PROXY
+enum TcpProxyStatus : uint32_t {
+  TCP_PROXY_STATUS_OK = 0,
+  TCP_PROXY_STATUS_INVALID_ARGUMENT = 1,
+  TCP_PROXY_STATUS_NO_RESOURCES = 2,
+  TCP_PROXY_STATUS_CONNECT_FAILED = 3,
+  TCP_PROXY_STATUS_ERROR = 4,
+  TCP_PROXY_STATUS_FLOW_CONTROL = 5,
+};
+#endif
 
 }  // namespace enums
 
@@ -576,6 +590,25 @@ class SerialProxyInfo final : public ProtoMessage {
  protected:
 };
 #endif
+#ifdef USE_TCP_PROXY
+class TcpProxyTargetInfo final : public ProtoMessage {
+ public:
+  StringRef name{nullptr, 0};  // null until set, encode only
+  enums::TcpProxyTargetType type{};
+  StringRef path{nullptr, 0};  // null until set, encode only
+  static uint8_t *encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM);
+  uint8_t *encode(ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) const {
+    return encode_msg(this, buffer PROTO_ENCODE_DEBUG_ARG);
+  }
+  static uint32_t calc_size_msg(const void *self);
+  uint32_t calculate_size() const { return calc_size_msg(this); }
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const char *dump_to(DumpBuffer &out) const override;
+#endif
+
+ protected:
+};
+#endif
 class DeviceInfoResponse final : public ProtoMessage {
  public:
   static constexpr uint16_t MESSAGE_TYPE = 10;
@@ -706,7 +739,7 @@ class ZWaveProxyCapabilities final : public ProtoMessage {
 class DeviceCapabilitiesResponse final : public ProtoMessage {
  public:
   static constexpr uint16_t MESSAGE_TYPE = 150;
-  static constexpr uint8_t ESTIMATED_SIZE = 102;
+  static constexpr uint8_t ESTIMATED_SIZE = 153;
 #ifdef HAS_PROTO_MESSAGE_DUMP
   const LogString *message_name() const override { return LOG_STR("device_capabilities_response"); }
 #endif
@@ -721,6 +754,9 @@ class DeviceCapabilitiesResponse final : public ProtoMessage {
 #endif
 #ifdef USE_SERIAL_PROXY
   std::array<SerialProxyInfo, SERIAL_PROXY_COUNT> serial_proxies{};
+#endif
+#ifdef USE_TCP_PROXY
+  std::array<TcpProxyTargetInfo, TCP_PROXY_TARGET_COUNT> tcp_proxy_targets{};
 #endif
   static uint8_t *encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM);
   uint8_t *encode(ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) const {
@@ -3933,6 +3969,127 @@ class SerialProxySetModeRequest final : public ProtoDecodableMessage {
   void decode(const uint8_t *buffer, size_t length) {
     ProtoDecodableMessage::decode_fields(this, buffer, length, &decode_field);
   }
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const char *dump_to(DumpBuffer &out) const override;
+#endif
+
+ protected:
+  static void decode_field(void *self, uint32_t tag, const uint8_t *data, proto_varint_value_t scalar);
+};
+#endif
+#ifdef USE_TCP_PROXY
+class TcpProxyOpenRequest final : public ProtoDecodableMessage {
+ public:
+  static constexpr uint16_t MESSAGE_TYPE = 156;
+  static constexpr uint8_t ESTIMATED_SIZE = 12;
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const LogString *message_name() const override { return LOG_STR("tcp_proxy_open_request"); }
+#endif
+  uint32_t target{0};
+  uint32_t stream_id{0};
+  uint32_t window{0};
+  void decode(const uint8_t *buffer, size_t length) {
+    ProtoDecodableMessage::decode_fields(this, buffer, length, &decode_field);
+  }
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const char *dump_to(DumpBuffer &out) const override;
+#endif
+
+ protected:
+  static void decode_field(void *self, uint32_t tag, const uint8_t *data, proto_varint_value_t scalar);
+};
+class TcpProxyOpenResponse final : public ProtoMessage {
+ public:
+  static constexpr uint16_t MESSAGE_TYPE = 157;
+  static constexpr uint8_t ESTIMATED_SIZE = 14;
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const LogString *message_name() const override { return LOG_STR("tcp_proxy_open_response"); }
+#endif
+  uint32_t stream_id{0};
+  enums::TcpProxyStatus status{};
+  uint32_t window{0};
+  uint32_t max_data_size{0};
+  static uint8_t *encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM);
+  uint8_t *encode(ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) const {
+    return encode_msg(this, buffer PROTO_ENCODE_DEBUG_ARG);
+  }
+  static uint32_t calc_size_msg(const void *self);
+  uint32_t calculate_size() const { return calc_size_msg(this); }
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const char *dump_to(DumpBuffer &out) const override;
+#endif
+
+ protected:
+};
+class TcpProxyData final : public ProtoDecodableMessage {
+ public:
+  static constexpr uint16_t MESSAGE_TYPE = 158;
+  static constexpr uint8_t ESTIMATED_SIZE = 23;
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const LogString *message_name() const override { return LOG_STR("tcp_proxy_data"); }
+#endif
+  uint32_t stream_id{0};
+  const uint8_t *data{nullptr};
+  uint16_t data_len{0};
+  void decode(const uint8_t *buffer, size_t length) {
+    ProtoDecodableMessage::decode_fields(this, buffer, length, &decode_field);
+  }
+  static uint8_t *encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM);
+  uint8_t *encode(ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) const {
+    return encode_msg(this, buffer PROTO_ENCODE_DEBUG_ARG);
+  }
+  static uint32_t calc_size_msg(const void *self);
+  uint32_t calculate_size() const { return calc_size_msg(this); }
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const char *dump_to(DumpBuffer &out) const override;
+#endif
+
+ protected:
+  static void decode_field(void *self, uint32_t tag, const uint8_t *data, proto_varint_value_t scalar);
+};
+class TcpProxyWindowUpdate final : public ProtoDecodableMessage {
+ public:
+  static constexpr uint16_t MESSAGE_TYPE = 159;
+  static constexpr uint8_t ESTIMATED_SIZE = 8;
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const LogString *message_name() const override { return LOG_STR("tcp_proxy_window_update"); }
+#endif
+  uint32_t stream_id{0};
+  uint32_t increment{0};
+  void decode(const uint8_t *buffer, size_t length) {
+    ProtoDecodableMessage::decode_fields(this, buffer, length, &decode_field);
+  }
+  static uint8_t *encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM);
+  uint8_t *encode(ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) const {
+    return encode_msg(this, buffer PROTO_ENCODE_DEBUG_ARG);
+  }
+  static uint32_t calc_size_msg(const void *self);
+  uint32_t calculate_size() const { return calc_size_msg(this); }
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const char *dump_to(DumpBuffer &out) const override;
+#endif
+
+ protected:
+  static void decode_field(void *self, uint32_t tag, const uint8_t *data, proto_varint_value_t scalar);
+};
+class TcpProxyClose final : public ProtoDecodableMessage {
+ public:
+  static constexpr uint16_t MESSAGE_TYPE = 160;
+  static constexpr uint8_t ESTIMATED_SIZE = 6;
+#ifdef HAS_PROTO_MESSAGE_DUMP
+  const LogString *message_name() const override { return LOG_STR("tcp_proxy_close"); }
+#endif
+  uint32_t stream_id{0};
+  enums::TcpProxyStatus status{};
+  void decode(const uint8_t *buffer, size_t length) {
+    ProtoDecodableMessage::decode_fields(this, buffer, length, &decode_field);
+  }
+  static uint8_t *encode_msg(const void *self, ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM);
+  uint8_t *encode(ProtoWriteBuffer &buffer PROTO_ENCODE_DEBUG_PARAM) const {
+    return encode_msg(this, buffer PROTO_ENCODE_DEBUG_ARG);
+  }
+  static uint32_t calc_size_msg(const void *self);
+  uint32_t calculate_size() const { return calc_size_msg(this); }
 #ifdef HAS_PROTO_MESSAGE_DUMP
   const char *dump_to(DumpBuffer &out) const override;
 #endif

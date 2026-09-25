@@ -248,6 +248,13 @@ class APIConnection final : public APIServerConnectionBase {
   void send_serial_proxy_data(const SerialProxyDataReceived &msg);
 #endif
 
+#ifdef USE_TCP_PROXY
+  void on_tcp_proxy_open_request(const TcpProxyOpenRequest &msg);
+  void on_tcp_proxy_data(const TcpProxyData &msg);
+  void on_tcp_proxy_window_update(const TcpProxyWindowUpdate &msg);
+  void on_tcp_proxy_close(const TcpProxyClose &msg);
+#endif
+
 #ifdef USE_EVENT
   void send_event(event::Event *event);
 #endif
